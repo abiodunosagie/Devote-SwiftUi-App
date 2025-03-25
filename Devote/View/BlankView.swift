@@ -8,11 +8,24 @@
 import SwiftUI
 
 struct BlankView: View {
+    // MARK: - PROPERTIES
+    var backgroundColor: Color
+    var backgroundOpacity: Double
+    // MARK: - BODY
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        VStack{
+            Rectangle()
+        }
+        .edgesIgnoringSafeArea(.all)
+        .foregroundStyle(backgroundColor.opacity(backgroundOpacity))
+        .blendMode(.overlay)
     }
 }
 
+
+// MARK: - PREVIEWS
 #Preview {
-    BlankView()
+    BlankView(backgroundColor: Color.black, backgroundOpacity: 0.3)
+        .background(BackgroundImageView())
+        .background(backgroundGradient.ignoresSafeArea(.all))
 }

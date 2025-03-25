@@ -10,12 +10,9 @@ import CoreData
 
 struct ContentView: View {
     // MARK: - PROPERTY
-    
+    @AppStorage("isDarkMode") private var isDarkMode: Bool = false
     @State var task: String = ""
-    // Computed property
-    private var isButtonDisabled: Bool {
-        task.isEmpty
-    }
+    @State private var showNewTaskItem: Bool = false
     
     // MARK: - FETCHING DATA
     @Environment(\.managedObjectContext) private var viewContext
@@ -24,29 +21,7 @@ struct ContentView: View {
         sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: true)],
         animation: .default)
     private var items: FetchedResults<Item>
-    // MARK: - FUNCTIONS
-    
-    // MARK: - ADD ITEMS FUNCTION to the CoreData
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(context: viewContext)
-            newItem.timestamp = Date()
-            newItem.task = task
-            newItem.completion = false
-            newItem.id = UUID()
-
-            do {
-                try viewContext.save()
-            } catch {
-               
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
-            
-            task = ""
-            hideKeyboard()
-        }
-    }
+  
 
     // MARK: - DELETE ITEM FUNCTION to the CoreData
     private func deleteItems(offsets: IndexSet) {
@@ -66,55 +41,116 @@ struct ContentView: View {
     // MARK: - BODY
     var body: some View {
             NavigationView {
-                VStack {
-                    VStack(spacing: 16) {
-                        TextField("New Task", text: $task)
-                            .padding()
-                            .background(Color(UIColor.systemGray6))
-                            .clipShape(.rect(cornerRadius: 10))
-                        
-                        Button {
-                            addItem()
-                        } label: {
+                // MARK: - MAIN VIEW
+                ZStack {
+                    VStack {
+                    
+                        // MARK: - HEADER
+                        HStack(spacing: 10) {
+                            // TITLE
+                            Text("Devote")
+                                .font(.system(.largeTitle, design: .rounded))
+                                .fontWeight(.heavy)
+                                .padding(.leading, 4)
+                            
                             Spacer()
-                            Text("SAVE")
-                            Spacer()
-                        }
-                        .disabled(isButtonDisabled)
-                        .padding()
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .background(isButtonDisabled ? Color.gray : Color.pink)
-                        .clipShape(.rect(cornerRadius: 10))
+                            
+                            // EIDT BUTTON
+                            EditButton()
+                                .font(
+                                    .system(
+                                        size: 16,
+                                        weight: .semibold,
+                                        design: .rounded
+                                    )
+                                )
+                                .padding(.horizontal, 10)
+                                .frame(minWidth: 70, minHeight: 24)
+                                .background(
+                                    Capsule().stroke(Color.white, lineWidth: 2)
+                                )
+                            // APPEARANCE BUTTON
+                            Button {
+                                // TOGGLE APPEARANCE
+                                isDarkMode.toggle()
+                            } label: {
+                                Image(systemName: isDarkMode ? "sun.max" : "moon.circle")
+                                    .resizable()
+                                    .frame(width: 24, height: 24)
+                                    .font(.system(.title, design: .rounded))
+                            }
 
-                    }//: VSTACK
-                    .padding()
-                    List {
-                        ForEach(items) { item in
-                                VStack(alignment: .leading) {
-                                    Text(item.task ?? "")
-                                        .font(.headline)
-                                        .fontWeight(.bold)
-                                    Text("Item at \(item.timestamp!, formatter: itemFormatter)")
-                                        .font(.footnote)
-                                        .foregroundStyle(.gray)
-                                }//: LIST ITEM
+                        } //: HSTACK
+                        .padding()
+                        .foregroundStyle(.white)
+                         Spacer(minLength: 40)
+                        // MARK: - NEW TASK BUTTON
+                        Button(action: {showNewTaskItem = true}) {
+                            Text("New Task")
+                                .font(
+                                    .system(
+                                        size: 20,
+                                        weight: .semibold,
+                                        design: .rounded
+                                    )
+                                )
+                            Image(systemName: "plus.circle")
+                                .font(
+                                    .system(
+                                        size: 20,
+                                        weight: .semibold,
+                                        design: .rounded
+                                    )
+                                )
+                            
                         }
-                        .onDelete(perform: deleteItems)
-                    } //: LIST
-                    .listStyle(InsetGroupedListStyle())
-                   // .shadow(color: Color(red: 0, green: 0, blue: 0, opacity: 0.3), radius: 12)
-                    .padding(.vertical, 0)
-                    .frame(maxWidth: 640)
-                }//: VSTACK
-                .navigationBarTitle("Daily Tasks", displayMode: .large)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        EditButton()
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 15)
+                        .foregroundStyle(.white)
+                        .background(Color.blue)
+                        .clipShape(Capsule())
+                        // MARK: - TASKS
+                        List {
+                            ForEach(items) { item in
+                                ListRowItemView(item: item)
+                            }
+                            .onDelete(perform: deleteItems)
+                        } //: LIST
+                        .listStyle(InsetGroupedListStyle())
+                        .shadow(color: Color(red: 0, green: 0, blue: 0, opacity: 0.3), radius: 12)
+                        .frame(maxWidth: 640)
+                    }//: VSTACK
+                    .blur(radius: showNewTaskItem ? 8.0 : 0, opaque: false)
+                    .transition(.move(edge: .bottom))
+                    .animation(.easeOut(duration: 0.5))
+                    
+                    // MARK: -  NEW TASK ITEM
+                    
+                    if showNewTaskItem {
+                        BlankView(
+                            backgroundColor: isDarkMode ? Color.black : Color.white,
+                            backgroundOpacity: isDarkMode ? 0.3 : 0.1
+                        )
+                            .onTapGesture {
+                                withAnimation {
+                                    showNewTaskItem = false
+                                }
+                            }
+                        NewTaskItemView(isShowing: $showNewTaskItem)
                     }
-                }//: TOOLBAR
+                    }//: ZSTACK
+                     .onAppear() {
+                         UITableView.appearance().backgroundColor = UIColor.clear
+                }
+                .navigationBarTitle("Daily Task", displayMode: .large )
+                .navigationBarHidden(true)
+                .background(BackgroundImageView()
+                .blur(radius: showNewTaskItem ? 8.0 : 0, opaque:false)
+                )
+                .background(backgroundGradient.ignoresSafeArea(.all))
             } //: NAVIGATION
-            Text("Select an item")
+            .navigationViewStyle(StackNavigationViewStyle())
+            
         }
 
 }
